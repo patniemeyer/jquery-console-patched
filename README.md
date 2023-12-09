@@ -1,4 +1,18 @@
-# jquery-console
+# jquery-console (patched)
+
+This is a fork of [chrisdone's jquery-console](https://github.com/chrisdone/jquery-console), which is now in 
+archived status. This fork has a few tweaks and it 
+merges [lain-d's PR](https://github.com/chrisdone/jquery-console/pull/71) that fixes key input on Android.
+
+```
+// Modifications by Pat Niemeyer (pat@pat.net):
+// - Added support for rich text prompt
+// - Added callbacks for click and escape key
+// - Merge lain-d's PR that fixes deprecated key event handling (fixes Android)
+//     https://github.com/chrisdone/jquery-console/pull/71
+```
+
+# Original README
 
 A terminal emulator for making command consoles written in JavaScript
 with jQuery.

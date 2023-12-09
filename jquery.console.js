@@ -1,3 +1,4 @@
+// https://github.com/chrisdone/jquery-console
 // JQuery Console 1.0
 // Sun Feb 21 20:28:47 GMT 2010
 //
@@ -37,6 +38,12 @@
 //   Safari 4.0.5 (6531.22.7) (Mac)
 //   Google Chrome 5.0.375.55 (Mac)
 
+// Modifications by Pat Niemeyer (pat@pat.net):
+// - Added support for rich text prompt
+// - Added callbacks for click and escape key
+// - Merge lain-d's PR that fixes deprecated key event handling (fixes Android)
+//     https://github.com/chrisdone/jquery-console/pull/71
+
 (function($) {
     var isWebkit = !!~navigator.userAgent.indexOf(' AppleWebKit/');
 
@@ -45,6 +52,9 @@
         // Constants
         // Some are enums, data types, others just for optimisation
         var keyCodes = {
+            // escape key
+            27: escape,
+
             // left
             37: moveBackward,
             // right
@@ -147,6 +157,7 @@
         // Main entry point
         (function() {
             extern.promptLabel = config && config.promptLabel ? config.promptLabel : "> ";
+            extern.ps1 = config && config.ps1;
             container.append(inner);
             inner.append(typer);
             typer.css({ position: 'absolute', top: 0, left: '-9999px' });
@@ -167,6 +178,8 @@
             extern.report = report;
             extern.showCompletion = showCompletion;
             extern.clearScreen = clearScreen;
+            extern.commandTrigger = commandTrigger;
+            extern.clearCurrentPrompt = clearCurrentPrompt;
         })();
 
         ////////////////////////////////////////////////////////////////////////
@@ -248,14 +261,23 @@
             enableInput();
             promptBox = $('<div class="jquery-console-prompt-box"></div>');
             var label = $('<span class="jquery-console-prompt-label"></span>');
+
+            // Allow custom elements as prompt labels. Create a new dom element here from the string template.
+            if (extern.ps1) {
+                var labelHtml = extern.continuedPrompt ? continuedPromptLabel : $(extern.ps1);
+                promptBox.append(label.html(labelHtml).show());
+            } else {
             var labelText = extern.continuedPrompt ? continuedPromptLabel : extern.promptLabel;
             promptBox.append(label.text(labelText).show());
-            label.html(label.html().replace(' ', '&nbsp;'));
+            }
+
+            // TODO: This breaks inline styling
+            // label.html(label.html().replace(' ', '&nbsp;'));
             prompt = $('<span class="jquery-console-prompt"></span>');
             promptBox.append(prompt);
             inner.append(promptBox);
             updatePromptDisplay();
-        };
+        }
 
         ////////////////////////////////////////////////////////////////////////
         // Handle setting focus
@@ -273,6 +295,10 @@
                 typer.css('position', 'fixed').focus();
             }
             scrollToBottom();
+
+            if (typeof extern.clickCallback == 'function') {
+                extern.clickCallback();
+            }
             return false;
         });
 
@@ -442,6 +468,7 @@
         };
 
         function clearScreen() {
+            console.log('clearScreen');
             inner.children(".jquery-console-prompt-box, .jquery-console-message").slice(0, -1).remove();
             extern.report(" ");
             extern.focus();
@@ -527,8 +554,14 @@
                     if (continuedText)
                         continuedText += '\n' + promptText;
                     else continuedText = promptText;
-                } else continuedText = undefined;
-                if (continuedText) text = continuedText;
+                } else {
+                    continuedText = undefined;
+                }
+
+                if (continuedText) {
+                    text = continuedText;
+                }
+
                 var ret = config.commandHandle(text, function(msgs) {
                     commandResult(msgs);
                 });
@@ -587,6 +620,7 @@
         // Report some message into the console
         function report(msg, className) {
             var text = promptText;
+            console.log('report promptBox REMOVE!');
             promptBox.remove();
             commandResult(msg, className);
             extern.promptText(text);
@@ -626,6 +660,14 @@
                 return true;
             } else return false;
         };
+
+        function escape() {
+            if (typeof extern.escapeCallback == 'function') {
+                extern.escapeCallback();
+                return true;
+            }
+            return false;
+        }
 
         function moveForward() {
             if (moveColumn(1)) {
@@ -810,7 +852,8 @@
             }
             prompt.html(html);
             scrollToBottom();
-        };
+        }
+        extern.updatePromptDisplay = updatePromptDisplay;
 
         // Simple HTML encoding
         // Simply replace '<', '>' and '&'
